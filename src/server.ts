@@ -10,3 +10,5 @@ app.use(express.json());
 app.use(routes);
 
 app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
+
+//Configurando variáveis de ambiente lá no insomnia
