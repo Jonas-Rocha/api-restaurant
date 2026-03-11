@@ -7,7 +7,7 @@ class ProductController {
       //   throw new AppError("Erro de teste", 501);  << erro de teste
       return response.json({ message: "Ok" });
     } catch (error) {
-      next(error); //NextFunction para poder tratar erros assincronos
+      next(error);
     }
   }
 }
