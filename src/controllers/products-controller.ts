@@ -7,7 +7,14 @@ class ProductController {
   async index(request: Request, response: Response, next: NextFunction) {
     try {
       //   throw new AppError("Erro de teste", 501);  << erro de teste
-      return response.json({ message: "Ok" });
+      const { name, price } = request.query; // entender ainda mais o query e body
+
+      const products = await knex<ProductRepository>("products")
+        .select()
+        .whereLike("name", `%${name ?? ""}%`) // se tiver um nome na query(parametro de busca), buscará pelo nome, se não, mostrará todos. operador nullish(??).  O % significa que tanto nomes que comecem com ou terminem com {name} devem aparecer.
+        .orderBy("name");
+
+      return response.json(products);
     } catch (error) {
       next(error);
     }
