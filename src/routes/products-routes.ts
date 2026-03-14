@@ -6,5 +6,6 @@ const productsController = new ProductController();
 
 productsRoutes.get("/", productsController.index);
 productsRoutes.post("/", productsController.create);
+productsRoutes.put("/:id", productsController.update); // o :id para capturar o produto a ser atualizado.
 
 export { productsRoutes };

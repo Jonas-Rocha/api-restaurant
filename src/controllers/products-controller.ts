@@ -2,8 +2,10 @@ import { NextFunction, Request, Response } from "express";
 // import { AppError } from "@/utils/AppError"; (não esta usando ainda)
 import { knex } from "@/database/migrations/knex";
 import { z } from "zod";
+import { request } from "http";
 
 class ProductController {
+  //LISTANDO OS PRODUTOS
   async index(request: Request, response: Response, next: NextFunction) {
     try {
       //   throw new AppError("Erro de teste", 501);  << erro de teste
@@ -16,10 +18,11 @@ class ProductController {
 
       return response.json(products);
     } catch (error) {
-      next(error);
+      next(error); // usando a função next para "passar o erro para frente" e ser tratado pelo middleware
     }
   }
 
+  //CRIANDO OS PRODUTOS
   async create(request: Request, response: Response, next: NextFunction) {
     try {
       const bodySchema = z.object({
@@ -33,7 +36,33 @@ class ProductController {
 
       return response.status(201).json();
     } catch (error) {
-      next(error);
+      next(error); // usando a função next para "passar o erro para frente" e ser tratado pelo middleware
+    }
+  }
+
+  //ATUALIZANDO OS PRODUTOS
+  async update(request: Request, response: Response, next: NextFunction) {
+    try {
+      const id = z //validando com o zod
+        .string() // ele já chega como string, então eu recupero ele como string.
+        .transform((value) => Number(value)) // transformo em number
+        .refine((value) => !isNaN(value), { message: "id must be a number" }) // faço uma verificação se é mesmo number
+        .parse(request.params.id); // e depois recupero o id
+
+      const bodySchema = z.object({
+        name: z.string().trim().min(6),
+        price: z.number().gt(0),
+      });
+
+      const { name, price } = bodySchema.parse(request.body);
+
+      await knex<ProductRepository>("products")
+        .update({ name, price, updated_at: knex.fn.now() }) // lembrando, esse update é o metodo pronto do knex e não esse controler que criei(update)
+        .where({ id }); // id que seja o mesmo validado pelo zod
+
+      return response.json();
+    } catch (error) {
+      next(error); // usando a função next para "passar o erro para frente" e ser tratado pelo middleware
     }
   }
 }
