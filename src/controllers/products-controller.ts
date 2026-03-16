@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-// import { AppError } from "@/utils/AppError"; (não esta usando ainda)
+import { AppError } from "@/utils/AppError";
 import { knex } from "@/database/migrations/knex";
 import { z } from "zod";
 import { request } from "http";
@@ -56,6 +56,15 @@ class ProductController {
 
       const { name, price } = bodySchema.parse(request.body);
 
+      const product = await knex<ProductRepository>("products")
+        .select()
+        .where({ id })
+        .first();
+
+      if (!product) {
+        throw new AppError("product not found");
+      }
+
       await knex<ProductRepository>("products")
         .update({ name, price, updated_at: knex.fn.now() }) // lembrando, esse update é o metodo pronto do knex e não esse controler que criei(update)
         .where({ id }); // id que seja o mesmo validado pelo zod
@@ -64,6 +73,30 @@ class ProductController {
     } catch (error) {
       next(error); // usando a função next para "passar o erro para frente" e ser tratado pelo middleware
     }
+  }
+
+  async remove(request: Request, response: Response, next: NextFunction) {
+    try {
+      //como eu preciso apenas do id para remover um produto, posso apenas copiar essa validação do zod.
+      const id = z //validando com o zod
+        .string() // ele já chega como string, então eu recupero ele como string.
+        .transform((value) => Number(value)) // transformo em number
+        .refine((value) => !isNaN(value), { message: "id must be a number" }) // faço uma verificação se é mesmo number
+        .parse(request.params.id); // e depois recupero o id
+
+      const product = await knex<ProductRepository>("products")
+        .select()
+        .where({ id })
+        .first(); // o first serve para pegar apenas o primeiro(e consequentemente o único) que tiver o {id} filtrado pelo .where(), pois esta retornando um array, o first serve para pegar apenas o primeiro da lista.
+
+      if (!product) {
+        throw new AppError("product not found");
+      }
+
+      await knex<ProductRepository>("products").delete().where({ id });
+
+      return response.json();
+    } catch (error) {}
   }
 }
 
