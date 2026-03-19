@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { AppError } from "@/utils/AppError";
-import { knex } from "@/database/migrations/knex";
+import { knex } from "@/database/knex";
 import { z } from "zod";
 import { request } from "http";
 
@@ -72,9 +72,11 @@ class ProductController {
       return response.json();
     } catch (error) {
       next(error); // usando a função next para "passar o erro para frente" e ser tratado pelo middleware
+      //Se não usar o next() aqui, o erro será capturado mas não será feito nada com ele. não será passado para "frente" para ser tratado
     }
   }
 
+  //REMOVENDO OS PRODUTOS
   async remove(request: Request, response: Response, next: NextFunction) {
     try {
       //como eu preciso apenas do id para remover um produto, posso apenas copiar essa validação do zod.
@@ -96,7 +98,9 @@ class ProductController {
       await knex<ProductRepository>("products").delete().where({ id });
 
       return response.json();
-    } catch (error) {}
+    } catch (error) {
+      next(error); // depois de capturar o erro, preciso passar ele pra "frente", para ser tratado. se não, o erro é capturado mas não é tratado e não acontece nada, por isso o next()
+    }
   }
 }
 
