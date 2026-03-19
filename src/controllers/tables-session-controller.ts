@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { knex } from "@/database/knex";
 import { z } from "zod";
+import { AppError } from "@/utils/AppError";
 
 class TablesSessionsController {
   async create(request: Request, response: Response, next: NextFunction) {
@@ -9,6 +10,20 @@ class TablesSessionsController {
         table_id: z.number(),
       });
       const { table_id } = bodySchema.parse(request.body);
+
+      // nesse aqui eu estou simplesmente omitindo o select() e usando diretamente o where(), o table_id: table_id não precisa pois fica reduntante
+      const session = await knex<TableSessionsRepository>("tables_sessions")
+        .where({
+          table_id,
+        })
+        .orderBy("opened_at", "desc") //colocando o orderBy( "desc") ele filtra de forma "decrescente?" e com o first() ele garante pegar o primeiro iten, e não devolte mais um array(lista).
+        .first();
+
+      if (session && !session.closed_at) {
+        // neste if() eu estou primeiro verificando se tem uma sessão, se tiver, verificar se o closed_at esta NULL "!session.closed_at". Se estiver NULL, deve retornar(lançar) o AppError().
+        throw new AppError("this table is already open");
+      }
+
 
       await knex<TableSessionsRepository>("tables_sessions").insert({
         table_id,
