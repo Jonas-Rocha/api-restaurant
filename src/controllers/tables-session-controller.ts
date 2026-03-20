@@ -24,7 +24,6 @@ class TablesSessionsController {
         throw new AppError("this table is already open");
       }
 
-
       await knex<TableSessionsRepository>("tables_sessions").insert({
         table_id,
         opened_at: knex.fn.now(),
@@ -34,6 +33,20 @@ class TablesSessionsController {
     } catch (error) {
       next(error);
     }
+  }
+
+  async index(request: Request, response: Response, next: NextFunction) {
+    try {
+      const sessions = await knex<TableSessionsRepository>(
+        "tables_sessions",
+      ).orderBy(
+        // aqui eu posso omitir o select() pq o knex ja vai entender que eu quero fazer a consulta e usar o orderBy().
+        // eu só usaria select se eu precisasse selecionar coisas especificas, se eu quero selecionar tudo, o select() pode ser omitido.
+        "closed_at",
+      );
+
+      return response.json(sessions);
+    } catch (error) {}
   }
 }
 
