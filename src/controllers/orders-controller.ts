@@ -53,7 +53,21 @@ class OrdersController {
 
   async index(request: Request, response: Response, next: NextFunction) {
     try {
-      return response.json();
+      const { table_session_id } = request.params; //como o table_session_id faz parte da rota(url), não preciso fazer validação.
+
+      const order = await knex("orders")
+        .select(
+          "orders.id",
+          "orders.table_session_id",
+          "orders.product_id",
+          "products.name",
+          "orders.price",
+          "orders.quantity",
+        ) //aqui estou colocando o .id para deixar explicito, afinal, podem ter outras tabelas com id também e pode dar erro de ambiguidade.
+        .join("products", "products.id", "orders.product_id")
+        .where({ table_session_id });
+
+      return response.json(order);
     } catch (error) {
       next(error);
     }
