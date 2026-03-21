@@ -2,7 +2,6 @@ import { NextFunction, Request, Response } from "express";
 import { AppError } from "@/utils/AppError";
 import { knex } from "@/database/knex";
 import { z } from "zod";
-import { request } from "http";
 
 class ProductController {
   //LISTANDO OS PRODUTOS
