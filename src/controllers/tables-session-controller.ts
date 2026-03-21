@@ -12,7 +12,7 @@ class TablesSessionsController {
       const { table_id } = bodySchema.parse(request.body);
 
       // nesse aqui eu estou simplesmente omitindo o select() e usando diretamente o where(), o table_id: table_id não precisa pois fica reduntante
-      const session = await knex<TableSessionsRepository>("tables_sessions")
+      const session = await knex<TablesSessionsRepository>("tables_sessions")
         .where({
           table_id,
         })
@@ -24,7 +24,7 @@ class TablesSessionsController {
         throw new AppError("this table is already open");
       }
 
-      await knex<TableSessionsRepository>("tables_sessions").insert({
+      await knex<TablesSessionsRepository>("tables_sessions").insert({
         table_id,
         opened_at: knex.fn.now(),
       });
@@ -37,7 +37,7 @@ class TablesSessionsController {
 
   async index(request: Request, response: Response, next: NextFunction) {
     try {
-      const sessions = await knex<TableSessionsRepository>(
+      const sessions = await knex<TablesSessionsRepository>(
         "tables_sessions",
       ).orderBy(
         // aqui eu posso omitir o select() pq o knex ja vai entender que eu quero fazer a consulta e usar o orderBy().
@@ -57,7 +57,7 @@ class TablesSessionsController {
         .refine((value) => !isNaN(value), { message: "id must be a number" })
         .parse(request.params.id);
 
-      const session = await knex<TableSessionsRepository>("tables_sessions")
+      const session = await knex<TablesSessionsRepository>("tables_sessions")
         .where({ id })
         .first();
 
@@ -69,7 +69,7 @@ class TablesSessionsController {
         throw new AppError("this session table is already closed");
       }
 
-      await knex<TableSessionsRepository>("tables_sessions")
+      await knex<TablesSessionsRepository>("tables_sessions")
         .update({
           closed_at: knex.fn.now(),
         })

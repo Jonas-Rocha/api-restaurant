@@ -16,7 +16,7 @@ class OrdersController {
         request.body,
       );
 
-      const session = await knex<TableSessionsRepository>("tables_sessions")
+      const session = await knex<TablesSessionsRepository>("tables_sessions")
         .where({ id: table_session_id })
         .first();
 
@@ -38,7 +38,14 @@ class OrdersController {
         throw new AppError("product not found");
       }
 
-      return response.status(201).json(product);
+      await knex<OrderRepository>("orders").insert({
+        table_session_id,
+        product_id,
+        quantity,
+        price: product.price, // aqui estamos deixando a tabela products atualizada, mas estamos guardando apenas o valor do MOMENTO do pedido.
+      });
+
+      return response.status(201).json();
     } catch (error) {
       next(error);
     }
