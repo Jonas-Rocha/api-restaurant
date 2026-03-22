@@ -1,29 +1,37 @@
+/**
+ * Controller focado em Iniciar (abrir) e Finalizar (fechar/pagar) sessões/atendimentos de uma mesa.
+ */
 import { Request, Response, NextFunction } from "express";
 import { knex } from "@/database/knex";
 import { z } from "zod";
 import { AppError } from "@/utils/AppError";
 
 class TablesSessionsController {
+  /**
+   * Método POST: Senta o cliente na mesa e ABRE uma nova sessão para lançar os pedidos posteriores.
+   */
   async create(request: Request, response: Response, next: NextFunction) {
     try {
       const bodySchema = z.object({
-        table_id: z.number(),
+        table_id: z.number(), // ID interno de qual mesa o cara sentou (foreign key)
       });
       const { table_id } = bodySchema.parse(request.body);
 
-      // nesse aqui eu estou simplesmente omitindo o select() e usando diretamente o where(), o table_id: table_id não precisa pois fica reduntante
+      // Verificação lógica vital: 
+      // Será que a última sessão (a vez passada que usaram essa mesa) já foi encerrada e paga?
       const session = await knex<TablesSessionsRepository>("tables_sessions")
-        .where({
-          table_id,
-        })
-        .orderBy("opened_at", "desc") //colocando o orderBy( "desc") ele filtra de forma "decrescente?" e com o first() ele garante pegar o primeiro iten, e não devolte mais um array(lista).
-        .first();
+        .where({ table_id })
+        // Ordeno de forma descendente no `opened_at` (ou seja, de tras-pra frente) garantindo pegar apenas a mais recente!
+        .orderBy("opened_at", "desc") 
+        .first(); // o first me assegura de pegar só 1 e sair do return do array
 
       if (session && !session.closed_at) {
-        // neste if() eu estou primeiro verificando se tem uma sessão, se tiver, verificar se o closed_at esta NULL "!session.closed_at". Se estiver NULL, deve retornar(lançar) o AppError().
+        // Se achei a aba/sessão daquela mesa, e O CAMPO "closed_at" é vazio: significa que a conta ta aberta! 
         throw new AppError("this table is already open");
       }
 
+      // Se passou da etapa acima: Ou a mesa nunca foi usada, ou ela está vaga e pronta
+      // Criamos via insert com a data do servidor (knex.fn.now())
       await knex<TablesSessionsRepository>("tables_sessions").insert({
         table_id,
         opened_at: knex.fn.now(),
@@ -35,22 +43,31 @@ class TablesSessionsController {
     }
   }
 
+  /**
+   * Método GET: Lista todas sessões de controle (tanto atendimentos atuais, quanto contas velhas).
+   */
   async index(request: Request, response: Response, next: NextFunction) {
     try {
       const sessions = await knex<TablesSessionsRepository>(
         "tables_sessions",
       ).orderBy(
-        // aqui eu posso omitir o select() pq o knex ja vai entender que eu quero fazer a consulta e usar o orderBy().
-        // eu só usaria select se eu precisasse selecionar coisas especificas, se eu quero selecionar tudo, o select() pode ser omitido.
+        // Colocando o order by por quem está com data fechada, organizando no front
         "closed_at",
       );
 
       return response.json(sessions);
-    } catch (error) {}
+    } catch (error) {
+      // Adicionado captura do next para evitar travar app no envio via Express
+      next(error); 
+    }
   }
 
+  /**
+   * Método PUT (ou update): Fechar a conta (Sessão), liberando a mesa pra o próximo.
+   */
   async update(request: Request, response: Response, next: NextFunction) {
     try {
+      // Validando o ID da sessão da mesa que vem através do param/URL:
       const id = z
         .string()
         .transform((value) => Number(value))
@@ -65,10 +82,12 @@ class TablesSessionsController {
         throw new AppError("session table not found");
       }
 
+      // Caso você re-clique no fechamento que já tava pago, o backend corta a execução!
       if (session.closed_at) {
         throw new AppError("this session table is already closed");
       }
 
+      // Processo de encerramento prático no DB: Setando o `closed_at`
       await knex<TablesSessionsRepository>("tables_sessions")
         .update({
           closed_at: knex.fn.now(),

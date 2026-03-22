@@ -1,29 +1,41 @@
+/**
+ * Controller responsável por todas as funcionalidades relativas aos Produtos (Cardápio).
+ * Contém o CRUD: Create (Criar), Read/Index (Listar), Update (Atualizar), Delete/Remove (Deletar).
+ */
 import { NextFunction, Request, Response } from "express";
 import { AppError } from "@/utils/AppError";
 import { knex } from "@/database/knex";
 import { z } from "zod";
 
 class ProductController {
-  //LISTANDO OS PRODUTOS
+  /**
+   * Método GET: Lista todos os produtos ou faz pesquisa/filtro por nome.
+   */
   async index(request: Request, response: Response, next: NextFunction) {
     try {
-      //   throw new AppError("Erro de teste", 501);  << erro de teste
-      const { name, price } = request.query; // entender ainda mais o query e body
+      // Extrai os dados pesquisados via query params (Ex: /products?name=frango)
+      const { name, price } = request.query; 
 
       const products = await knex<ProductRepository>("products")
         .select()
-        .whereLike("name", `%${name ?? ""}%`) // se tiver um nome na query(parametro de busca), buscará pelo nome, se não, mostrará todos. operador nullish(??).  O % significa que tanto nomes que comecem com ou terminem com {name} devem aparecer.
+        // whereLike com %: Busca produtos que contenham aquele texto em qualquer parte do nome.
+        // nullish coalescing (?? ""): Faz com que, se o name não for passado na URL,
+        // a pesquisa vire uma string vazia ("", que abrange todos os produtos cadastrados).
+        .whereLike("name", `%${name ?? ""}%`) 
         .orderBy("name");
 
       return response.json(products);
     } catch (error) {
-      next(error); // usando a função next para "passar o erro para frente" e ser tratado pelo middleware
+      next(error); // Repassando exceções pro middleware tratar e formatar
     }
   }
 
-  //CRIANDO OS PRODUTOS
+  /**
+   * Método POST: Registra um novo produto no banco.
+   */
   async create(request: Request, response: Response, next: NextFunction) {
     try {
+      // Valida com o Zod: string de no mínimo 6 letras pro nome, preço obrigatório maior que zero (gt > 0).
       const bodySchema = z.object({
         name: z.string({ required_error: "name is required" }).trim().min(6),
         price: z.number().gt(0, { message: "Value must be greater than 0" }),
@@ -31,22 +43,27 @@ class ProductController {
 
       const { name, price } = bodySchema.parse(request.body);
 
-      await knex<ProductRepository>("products").insert({ name, price }); // Não precisa importar, o arquivo de tipagem fica disponivel globalmente
+      // Não precisamos importar ProductRepository pois o arquivo de .d.ts fica visível globalmente
+      // Grava no banco de dados.
+      await knex<ProductRepository>("products").insert({ name, price }); 
 
-      return response.status(201).json();
+      return response.status(201).json(); // Status 201 Created (Criado com Sucesso)
     } catch (error) {
-      next(error); // usando a função next para "passar o erro para frente" e ser tratado pelo middleware
+      next(error); 
     }
   }
 
-  //ATUALIZANDO OS PRODUTOS
+  /**
+   * Método PUT: Atualiza um produto.
+   */
   async update(request: Request, response: Response, next: NextFunction) {
     try {
-      const id = z //validando com o zod
-        .string() // ele já chega como string, então eu recupero ele como string.
-        .transform((value) => Number(value)) // transformo em number
-        .refine((value) => !isNaN(value), { message: "id must be a number" }) // faço uma verificação se é mesmo number
-        .parse(request.params.id); // e depois recupero o id
+      // Recupera o ID da URL e converte pra número
+      const id = z 
+        .string() // ID chega como string em req.params...
+        .transform((value) => Number(value)) // Convertemos pra uso computacional (number)
+        .refine((value) => !isNaN(value), { message: "id must be a number" }) // Valida se n bateu letras em vez de ID númerico
+        .parse(request.params.id); 
 
       const bodySchema = z.object({
         name: z.string().trim().min(6),
@@ -55,8 +72,8 @@ class ProductController {
 
       const { name, price } = bodySchema.parse(request.body);
 
+      // Verificamos antes se esse produto lá no banco existe mesmo...
       const product = await knex<ProductRepository>("products")
-        .select()
         .where({ id })
         .first();
 
@@ -64,41 +81,45 @@ class ProductController {
         throw new AppError("product not found");
       }
 
+      // Feito a checagem que existe: disparamos a atualização.
+      // E aproveitamos para preencher forçadamente o updated_at com o momento atual (now)
       await knex<ProductRepository>("products")
-        .update({ name, price, updated_at: knex.fn.now() }) // lembrando, esse update é o metodo pronto do knex e não esse controler que criei(update)
-        .where({ id }); // id que seja o mesmo validado pelo zod
+        .update({ name, price, updated_at: knex.fn.now() }) 
+        .where({ id }); 
 
       return response.json();
     } catch (error) {
-      next(error); // usando a função next para "passar o erro para frente" e ser tratado pelo middleware
-      //Se não usar o next() aqui, o erro será capturado mas não será feito nada com ele. não será passado para "frente" para ser tratado
+      next(error); 
+      // Sem colocar next(error) se houvesse falha o servidor iria travar.
     }
   }
 
-  //REMOVENDO OS PRODUTOS
+  /**
+   * Método DELETE: Remove um produto por ID do banco de dados (Cardápio).
+   */
   async remove(request: Request, response: Response, next: NextFunction) {
     try {
-      //como eu preciso apenas do id para remover um produto, posso apenas copiar essa validação do zod.
-      const id = z //validando com o zod
-        .string() // ele já chega como string, então eu recupero ele como string.
-        .transform((value) => Number(value)) // transformo em number
-        .refine((value) => !isNaN(value), { message: "id must be a number" }) // faço uma verificação se é mesmo number
-        .parse(request.params.id); // e depois recupero o id
+      // Podemos reaproveitar só a validação de numero ID pois não mandaremos (body) nessa rota
+      const id = z 
+        .string() 
+        .transform((value) => Number(value)) 
+        .refine((value) => !isNaN(value), { message: "id must be a number" }) 
+        .parse(request.params.id); 
 
       const product = await knex<ProductRepository>("products")
-        .select()
         .where({ id })
-        .first(); // o first serve para pegar apenas o primeiro(e consequentemente o único) que tiver o {id} filtrado pelo .where(), pois esta retornando um array, o first serve para pegar apenas o primeiro da lista.
+        .first(); // O first garante que receba um objeto direto. E não precisará procurar no index: product[0].
 
       if (!product) {
         throw new AppError("product not found");
       }
 
+      // Deleção definitiva pelo ID
       await knex<ProductRepository>("products").delete().where({ id });
 
       return response.json();
     } catch (error) {
-      next(error); // depois de capturar o erro, preciso passar ele pra "frente", para ser tratado. se não, o erro é capturado mas não é tratado e não acontece nada, por isso o next()
+      next(error); 
     }
   }
 }

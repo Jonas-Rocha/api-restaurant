@@ -1,10 +1,14 @@
+/**
+ * Seed (Semente) para popular (preencher) o banco de dados inicial com alguns produtos.
+ * Muito útil para termos dados de teste práticos ao iniciarmos o projeto.
+ */
 import { Knex } from "knex";
 
 export async function seed(knex: Knex): Promise<void> {
-  // Deletes ALL existing entries
+  // Primeiramente, apaga todos os registros existentes na tabela "products" para evitar duplicação
   await knex("products").del();
 
-  // Inserts seed entries
+  // Em seguida, insere a lista de novos produtos base
   await knex("products").insert([
     { name: "Nhoque quatro queijos", price: 45 },
     { name: "Isca de frango", price: 60 },
