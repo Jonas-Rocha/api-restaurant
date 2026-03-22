@@ -11,7 +11,7 @@ export default {
       //por exemplo: para impedir que um produto inexistente seja cadastrado em uma tabela
     },
   },
-  useNullAsDefault: true,
+  useNullAsDefault: true, // "Se eu não passar valor para uma coluna, usa NULL automaticamente".  isso ajuda no updated_at, por exemplo.
   migrations: {
     extensions: "ts",
     directory: "./src/database/migrations",
